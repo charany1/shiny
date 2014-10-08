@@ -3280,7 +3280,7 @@
     // filter out values that haven't changed.
     $(window).resize(debounce(500, sendImageSize));
     $('body').on('shown.sendImageSize', '*', sendImageSize);
-    $('body').on('shown.sendOutputHiddenState hidden.sendOutputHiddenState', '*',
+    $('body').on('shown.bs.tab.sendOutputHiddenState hidden.bs.tab.sendOutputHiddenState', '*',
                  sendOutputHiddenState);
 
     // Send initial pixel ratio, and update it if it changes
