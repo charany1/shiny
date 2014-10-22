@@ -3,24 +3,100 @@
 \alias{observeEvent}
 \title{Event handler}
 \usage{
-observeEvent(eventExpr, callback, env = parent.frame(), quoted = FALSE)
+observeEvent(eventExpr, callback, env = parent.frame(), quoted = FALSE,
+  label = NULL, suspended = FALSE, priority = 0,
+  domain = getDefaultReactiveDomain(), autoDestroy = TRUE,
+  suppressFirst = TRUE)
+}
+\arguments{
+\item{eventExpr}{A (quoted or unquoted) expression that represents the event;
+this can be a simple reactive value like `input$click`, a call to a
+reactive expression like `dataset()`, or even a complex expression inside
+curly braces}
+
+\item{callback}{The function to call whenever the observer sees that the
+event expression has invalidated}
+
+\item{env}{The parent environment for the reactive expression. By default,
+this is the calling environment, the same as when defining an ordinary
+non-reactive expression.}
+
+\item{quoted}{Is the expression quoted? By default, this is \code{FALSE}.
+This is useful when you want to use an expression that is stored in a
+variable; to do so, it must be quoted with `quote()`.}
+
+\item{label}{A label for the observer, useful for debugging.}
+
+\item{suspended}{If \code{TRUE}, start the observer in a suspended state. If
+\code{FALSE} (the default), start in a non-suspended state.}
+
+\item{priority}{An integer or numeric that controls the priority with which
+this observer should be executed. An observer with a given priority level
+will always execute sooner than all observers with a lower priority level.
+Positive, negative, and zero values are allowed.}
+
+\item{domain}{See \link{domains}.}
+
+\item{autoDestroy}{If \code{TRUE} (the default), the observer will be
+automatically destroyed when its domain (if any) ends.}
+}
+\value{
+An observer reference class object. See \code{\link{observe}}.
 }
 \description{
-Event handler
+Respond to "event-like" reactive inputs, values, and expressions.
+}
+\details{
+Shiny's reactive programming framework is primarily designed for calculated
+values (reactive expressions) and side-effect-causing actions (observers)
+that respond to any of their inputs changing. That's often what is desired in
+Shiny apps, but not always: sometimes you want to wait for a specific action
+to be taken from the user, like clicking an \code{\link{actionButton}},
+before calculating an expression or taking an action. A reactive value or
+expression that is used in this way is called an \emph{event}.
+
+These situations demand a more imperative, "event handling" style of
+programming that is possible--but not particularly intuitive--using the
+reactive programming primitives \code{\link{observe}} and
+\code{\link{isolate}}. \code{observeEvent} and \code{eventFilter} provide
+straightforward APIs for event handling that wrap \code{observe} and
+\code{isolate}.
+
+Use \code{observeEvent} whenever you want to \emph{perform an action} in
+response to an event. (Note that "recalculate a value" does not generally
+count as performing an action--see \code{eventFilter} for that.) The first
+argument is the event you want to respond to, and the second argument is a
+function that should be called whenever the event occurs.
+
+Use \code{eventFilter} inside of a \code{\link{reactive}} expression to use a
+subexpression (represented by the \code{valueFunc} function) but only when an
+event occurs.
 }
 \examples{
-\dontrun{
-# In ui.R:
-shinyUI(basicPage(
-  numericInput("n", "Number of observations", 5),
-  actionButton("saveButton", "Save")
-))
-# In server.R:
-shinyServer(function(input, output) {
-  observeEvent(input$saveButton, function() {
-    write.csv(runif(input$n), file = "data.csv")
+\donttest{
+ui <- fluidPage(
+  column(4,
+    numericInput("x", "Value", 5),
+    br(),
+    actionButton("button", "Show")
+  ),
+  column(8, tableOutput("table"))
+)
+server <- function(input, output) {
+  # Take an action every time button is pressed;
+  # here, we just print a message to the console
+  observeEvent(input$button, function() {
+    cat("Showing", input$x, "rows\\n")
   })
-})
+  output$table <- renderTable({
+    # Take a reactive dependency on input$button, but
+    # not on any of the stuff inside the function
+    eventFilter(input$button, function() {
+      head(cars, input$x)
+    })
+  })
+}
+shinyApp(ui=ui, server=server)
 }
 }
 \seealso{
