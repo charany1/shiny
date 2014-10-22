@@ -3,8 +3,9 @@
 \alias{observeEvent}
 \title{Event handler}
 \usage{
-observeEvent(eventExpr, callback, env = parent.frame(), quoted = FALSE,
-  label = NULL, suspended = FALSE, priority = 0,
+observeEvent(eventExpr, handlerExpr, env_event = parent.frame(),
+  quoted_event = FALSE, env_handler = parent.frame(),
+  quoted_handler = FALSE, label = NULL, suspended = FALSE, priority = 0,
   domain = getDefaultReactiveDomain(), autoDestroy = TRUE,
   suppressFirst = TRUE)
 }
@@ -14,16 +15,20 @@ this can be a simple reactive value like `input$click`, a call to a
 reactive expression like `dataset()`, or even a complex expression inside
 curly braces}
 
-\item{callback}{The function to call whenever the observer sees that the
+\item{handlerExpr}{The expression to call whenever the observer sees that the
 event expression has invalidated}
 
-\item{env}{The parent environment for the reactive expression. By default,
-this is the calling environment, the same as when defining an ordinary
-non-reactive expression.}
+\item{env_event}{The parent environment for the reactive expression. By
+default, this is the calling environment, the same as when defining an
+ordinary non-reactive expression.}
 
-\item{quoted}{Is the expression quoted? By default, this is \code{FALSE}.
-This is useful when you want to use an expression that is stored in a
-variable; to do so, it must be quoted with `quote()`.}
+\item{quoted_event}{Is the eventExpr expression quoted? By default, this is
+\code{FALSE}. This is useful when you want to use an expression that is
+stored in a variable; to do so, it must be quoted with `quote()`.}
+
+\item{env_handler}{}
+
+\item{quoted_handler}{}
 
 \item{label}{A label for the observer, useful for debugging.}
 

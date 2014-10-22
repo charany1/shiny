@@ -493,7 +493,15 @@ Observer <- R6Class(
         stop("Can't make an observer from a function that takes parameters; ",
              "only functions without parameters can be reactive.")
 
-      .func <<- func
+      .func <<- function() {
+        tryCatch(
+          func(),
+          validation = function(e) {
+            # It's OK for a validation error to cause an observer to stop
+            # running
+          }
+        )
+      }
       .label <<- label
       .domain <<- domain
       .autoDestroy <<- autoDestroy
@@ -1223,14 +1231,16 @@ maskReactiveContext <- function(expr) {
 #'   this can be a simple reactive value like `input$click`, a call to a
 #'   reactive expression like `dataset()`, or even a complex expression inside
 #'   curly braces
-#' @param callback The function to call whenever the observer sees that the
+#' @param handlerExpr The expression to call whenever the observer sees that the
 #'   event expression has invalidated
-#' @param env The parent environment for the reactive expression. By default,
-#'   this is the calling environment, the same as when defining an ordinary
-#'   non-reactive expression.
-#' @param quoted Is the expression quoted? By default, this is \code{FALSE}.
-#'   This is useful when you want to use an expression that is stored in a
-#'   variable; to do so, it must be quoted with `quote()`.
+#' @param env_event The parent environment for the reactive expression. By
+#'   default, this is the calling environment, the same as when defining an
+#'   ordinary non-reactive expression.
+#' @param quoted_event Is the eventExpr expression quoted? By default, this is
+#'   \code{FALSE}. This is useful when you want to use an expression that is
+#'   stored in a variable; to do so, it must be quoted with `quote()`.
+#' @param env_handler
+#' @param quoted_handler
 #' @param label A label for the observer, useful for debugging.
 #' @param suspended If \code{TRUE}, start the observer in a suspended state. If
 #'   \code{FALSE} (the default), start in a non-suspended state.
@@ -1273,21 +1283,51 @@ maskReactiveContext <- function(expr) {
 #' }
 #'
 #' @export
-observeEvent <- function(eventExpr, callback, env=parent.frame(), quoted=FALSE,
+observeEvent <- function(eventExpr, handlerExpr,
+  env_event = parent.frame(), quoted_event = FALSE,
+  env_handler = parent.frame(), quoted_handler = FALSE,
   label=NULL, suspended=FALSE, priority=0, domain=getDefaultReactiveDomain(),
-  autoDestroy = TRUE, suppressFirst = TRUE) {
+  autoDestroy = TRUE, ignoreNULL = TRUE) {
 
-  eventFunc <- exprToFunction(eventExpr, env, quoted)
+  eventFunc <- exprToFunction(eventExpr, env_event, quoted_event)
   if (is.null(label))
     label <- sprintf('observeEvent(%s)', paste(deparse(body(eventFunc)), collapse='\n'))
 
-  initialized <- !suppressFirst
+  handlerFunc <- exprToFunction(handlerExpr, env_handler, quoted_handler)
+
   invisible(observe({
-    eventVal <- eventFunc()
-    if (!initialized)
-      initialized <<- TRUE
-    else
-      isolate(callback())
+    e <- eventFunc()
+
+    if (!(!ignoreNULL || is.null(e) || (inherits(e, 'shinyActionButtonValue') && e == 0))) {
+      return()
+    }
+
+    isolate(handlerFunc())
   }, label = label, suspended = suspended, priority = priority, domain = domain,
     autoDestroy = TRUE))
+}
+
+#' @export
+eventReactive  <- function(eventExpr, handlerExpr,
+  env_event = parent.frame(), quoted_event = FALSE,
+  env_handler = parent.frame(), quoted_handler = FALSE,
+  label=NULL, domain=getDefaultReactiveDomain(),
+  ignoreNULL = TRUE) {
+
+  eventFunc <- exprToFunction(eventExpr, env_event, quoted_event)
+  if (is.null(label))
+    label <- sprintf('eventReactive(%s)', paste(deparse(body(eventFunc)), collapse='\n'))
+
+  handlerFunc <- exprToFunction(handlerExpr, env_handler, quoted_handler)
+
+  invisible(reactive({
+    e <- eventFunc()
+
+    validate(need(
+      !ignoreNULL || is.null(e) || (inherits(e, 'shinyActionButtonValue') && e == 0),
+      message = FALSE
+    ))
+
+    isolate(handlerFunc())
+  }, label = label, domain = domain))
 }
